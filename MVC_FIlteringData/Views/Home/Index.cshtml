@@ -1,0 +1,172 @@
+﻿<script src="~/Scripts/jquery-2.1.1.min.js"></script>
+<script src="~/Scripts/knockout-3.2.0.js"></script>
+
+<style type="text/css">
+    .clstable{
+    border:double;
+    }
+</style>
+
+<h2>Index</h2>
+
+<table id="tbl1">
+    <tr>
+        <td>
+            Agent
+        </td>
+        <td>
+            <select id="lstagents" data-bind="options:Agents,optionsCaption:'Choose Agent Name',value:SelectedAgent,optionsText:'AgentName',optionsValue:'AgentId'"></select>
+        </td>
+        <td>
+            Filter
+        </td>
+        <td>
+            <select id="lstoption" data-bind="options:FilterOptions,value:SelectedFilter">
+                 
+            </select>
+        </td>
+        <td>
+            Territory
+        </td>
+        <td>
+            <select id="lstterritories" data-bind="options:Territories,optionsCaption:'Choose Territory Name',value:SelectedTerritory,optionsText:'TerritoryName',optionsValue:'TerritoryId'"></select>
+        </td>
+    </tr>
+</table>
+<div></div>
+
+<table class="clstable">
+    <thead>
+        <tr>
+            <th class="clstable">SalesRecordId</th>
+            <th class="clstable">AgentName</th>
+            <th class="clstable">TerritoryName</th>
+            <th class="clstable">ProductName</th>
+            <th class="clstable">Quantity</th>
+        </tr>
+    </thead>
+    <tbody data-bind="foreach:Sales">
+        <tr>
+            <td class="clstable"> <span data-bind="text:SalesRecordId"></span></td>
+            <td class="clstable"> <span data-bind="text:AgentName"></span></td>
+            <td class="clstable"> <span data-bind="text:TerritoryName"></span></td>
+            <td class="clstable"> <span data-bind="text:ProductName"></span></td>
+            <td class="clstable"> <span data-bind="text:Quantity"></span></td>
+        </tr>
+    </tbody>
+</table>
+
+
+<script type="text/javascript">
+    var ViewModel = function (){
+        var self = this;
+
+        //Observable Arrays for Agents, Territories, Sales and Filters
+        
+        self.Agents = ko.observableArray([]);
+        self.Territories = ko.observableArray([]);
+        self.Sales = ko.observableArray([]);
+        self.FilterOptions = ko.observableArray([
+            "All", "AND", "OR"
+        ]);
+
+        //Observable declaration for Selected Agent, Territory and Filters
+
+        self.SelectedAgent = ko.observable();
+        self.SelectedTerritory = ko.observable();
+        self.SelectedFilter = ko.observable();
+
+        var filter;
+
+        loadagents();
+        loadterritories();
+
+
+        //The Function used to Load Agents
+        function loadagents() {
+            $.ajax({
+                url: "/Agents",
+                type: "GET"
+            }).done(function (resp) {
+                ko.utils.arrayForEach(resp, function (item) {
+                    self.Agents.push({AgentId:item.AgentId,AgentName:item.AgentName});
+                });
+            }).error(function (err) {
+                alert("Error " + err.status + "  " + err.statusText);
+            });
+        }
+
+        //The FUnction used to Load Terrotories
+        function loadterritories() {
+            $.ajax({
+                url: "/Territories",
+                type: "GET"
+            }).done(function (resp) {
+                ko.utils.arrayForEach(resp, function (item) {
+                    self.Territories.push({TerritoryId:item.TerritoryId,TerritoryName:item.TerritoryName});
+                });
+            }).error(function (err) {
+                alert("Error " + err.status + "  " + err.statusText);
+            });
+        }
+
+        //event:{change:selectionChanged},
+        //self.selectionChanged = function (evt) {
+        //    alert("Changed");
+        //};
+
+        self.SelectedAgent.subscribe(function (val) {
+            //alert("The Agent is " + val + "  Filter " + filter + " Territory " + self.SelectedTerritory());
+
+            if (self.SelectedTerritory() !== 'undefined') {
+                loadSalesData(val, filter, self.SelectedTerritory());
+            }
+            else {
+                alert("Please Select the Territory Name");
+            }
+
+        });
+
+        self.SelectedTerritory.subscribe(function (val) {
+            //alert("The Territory is " + val + "  Filter " + filter + " Agent " + self.SelectedAgent());
+            if (self.SelectedAgent() !== 'undefined') {
+                loadSalesData(self.SelectedAgent(),filter,val);
+            }
+            else {
+                alert("Please Select the Agent Name");
+            }
+        });
+
+
+        self.SelectedFilter.subscribe(function (v) {
+            filter = v;
+           
+            loadSalesData(self.SelectedAgent(), filter, self.SelectedTerritory());
+        });
+
+        //Function to load Sales Information
+        //If the filter is 'All' the the complete Sales information will be loaded
+        //Else the Sales information based upon 'AND' and 'OR' condition combination of the
+        //Agent and territory will be loaed
+        function loadSalesData(agentId,filter,territoryId) {
+            var url;
+            if (filter === 'All') {
+                url = "/SalesInfo";
+            }
+            else {
+                url = "/Agents/" + agentId + "/" + filter + "/Territories/" + territoryId;
+            }
+
+            $.ajax({
+                url: url,
+                type:"GET"
+            }).done(function (resp) {
+                self.Sales(resp);
+            }).error(function (err) {
+                alert("Error " + err.status + "  " + err.statusText);
+            });
+        }
+       
+    };
+    ko.applyBindings(new ViewModel());
+</script>
